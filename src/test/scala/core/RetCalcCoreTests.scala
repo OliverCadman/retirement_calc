@@ -1,5 +1,7 @@
 package core
 
+import cats.data.NonEmptyList
+import cats.data.Validated.{Invalid, Valid}
 import core.RetCalcError.NegativeIncomeError
 import org.scalactic.{Equality, TypeCheckedTripleEquals}
 import org.scalatest.matchers.should.Matchers
@@ -32,7 +34,7 @@ class RetCalcCoreTests extends AnyWordSpec with Matchers with TypeCheckedTripleE
 
       val expected = 725996.1871
 
-      actual.right.value should === (expected)
+      actual.toEither.right.value should === (expected)
 
     }
     "calculate the expected decremented value after 'retirement' using Fixed Return" in {
@@ -47,7 +49,7 @@ class RetCalcCoreTests extends AnyWordSpec with Matchers with TypeCheckedTripleE
       )
 
       val expected = 2995346.0133
-      actual.right.value should === (expected)
+      actual.toEither.right.value should === (expected)
     }
   }
 
@@ -61,8 +63,12 @@ class RetCalcCoreTests extends AnyWordSpec with Matchers with TypeCheckedTripleE
         params = params
       )
 
-      result.right.map(_._1).right.value should === (990593.5125)
-      result.right.map(_._2).right.value should === (3711442.9572)
+      result.map {
+        pair => {
+          pair._1 should === (990593.5125)
+          pair._2 should === (3711442.9572)
+        }
+      }
     }
 
     "calculate the expected amounts for accumulation and drawdown" in {
@@ -81,8 +87,13 @@ class RetCalcCoreTests extends AnyWordSpec with Matchers with TypeCheckedTripleE
         params = params
       )
 
-      result.right.map(_._1).right.value should === (936739.2915)
-      result.right.map(_._2).right.value should === (2179370.5929)
+      result.map {
+        pair => {
+          pair._1 should === (936739.2915)
+          pair._2 should === (2179370.5929)
+        }
+      }
+//      result should === (Valid((936739.2915, 2179370.5929)))
     }
   }
 
@@ -99,7 +110,7 @@ class RetCalcCoreTests extends AnyWordSpec with Matchers with TypeCheckedTripleE
 
       val actual = 23 * 12 + 1
 
-      result should === (Right(actual))
+      result.toEither.right.value should === (actual)
     }
     "be able to compute a large result quickly" in {
       val result = RetCalc.nbMonthsOfSaving(
@@ -110,7 +121,7 @@ class RetCalcCoreTests extends AnyWordSpec with Matchers with TypeCheckedTripleE
         nMonthsInRetirement = 80 * 12
       )
 
-      println(result)
+
     }
 
     "return None if expenses is greater than net income" in {
@@ -122,7 +133,7 @@ class RetCalcCoreTests extends AnyWordSpec with Matchers with TypeCheckedTripleE
         expenses = 1001
       )
 
-      result should === (Left(NegativeIncomeError(1000, 1001)))
+      result should === (Invalid(NonEmptyList.of(NegativeIncomeError(1000, 1001))))
     }
   }
 

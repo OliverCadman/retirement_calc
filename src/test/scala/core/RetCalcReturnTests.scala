@@ -49,7 +49,6 @@ class RetCalcReturnTests extends AnyWordSpec with Matchers with TypeCheckedTripl
       val expected = MonthIDNotFoundError("2018.01", "2017.01", "2017.12")
       variableReturns.fromUntil("2017.01", "2018.01") should === (Invalid(NonEmptyList.of(expected)))
     }
-    "return MonthIDNotFound error if both 'from' and 'until' month IDs are not found in returns Vector" in pending
   }
 
   "Returns.monthlyInterest" should {

@@ -1,6 +1,7 @@
 package app
 
 import cats.data.Validated
+import cats.data.Validated.{Invalid, Valid}
 import core.RetCalcError.RetCalcResult
 import core.{ArgParser, EquityData, InflationData, OutputFormatter, RetCalc, RetCalcParams, Returns}
 import cats.implicits._
@@ -30,11 +31,11 @@ object SimulatePlanApp extends OutputFormatter {
            |Capital after ${nYearsSaving} years of saving: £${normalisedCapitalAfterSaving}.
            |Capital after ${nYearsInRetirement} years in retirement: £${normalisedCapitalAfterRetirement}.
            |""".stripMargin
-      }.toValidatedNel
+      }
     }
 
 
-  def strMain(args: Array[String]): Validated[String, String] = {
+  def strMain(args: Array[String]): String = {
 
     if (args.length != 6) {
       s"""
@@ -49,7 +50,7 @@ object SimulatePlanApp extends OutputFormatter {
         |  INITIAL-CAPITAL: The amount of money you already have saved.
         |  NET-INCOME: Your monthly net income (after taxes).
         |  EXPENSES: Your monthly expenses.
-        |""".stripMargin.invalid
+        |""".stripMargin
     } else {
       val equities = EquityData.fromResource("sp500.tsv")
       val inflations = InflationData.fromResource("cpi.tsv")
@@ -59,17 +60,22 @@ object SimulatePlanApp extends OutputFormatter {
       val validatedYearsSaving = ArgParser.parseInt("nbYearsSaving", args(1))
       val validatedParams = ArgParser.parseParams(args)
 
-      (
+      val result = (
         validatedFromUntil,
         validatedYearsSaving,
         validatedParams
       ).tupled
         .andThen {
           case ((from, until), yearsSaving, params) =>
-              returns.fromUntil(from, until).andThen { returns =>
-                strSimulatePlan(returns, yearsSaving, params)
-              }
+            returns.fromUntil(from, until).andThen { returns =>
+              strSimulatePlan(returns, yearsSaving, params)
+            }
         }.leftMap(nel => nel.map(_.message).toList.mkString("\n"))
+
+      result match {
+        case Valid(res) => res
+        case Invalid(errors) => errors
+      }
     }
   }
 

@@ -1,6 +1,9 @@
 package core
 
-import core.RetCalcError.NegativeIncomeError
+import cats.data.NonEmptyList
+import cats.data.Validated.{Invalid, Valid}
+import core.RetCalcError.{NegativeIncomeError, RetCalcResult}
+import cats.implicits._
 
 case class RetCalcParams(
                         initialCapital: Double,
@@ -17,7 +20,7 @@ object RetCalc {
                    nMonths: Int,
                    netIncome: Double,
                    expenses: Double
-                   ): Either[RetCalcError, Double] = {
+                   ): RetCalcResult[Double] = {
     val monthlySavings = netIncome - expenses
     (0 until nMonths).foldLeft(Right(initialCapital): Either[RetCalcError, Double])(
       (capitalPerMonth, month) => {
@@ -25,47 +28,46 @@ object RetCalc {
           c <- capitalPerMonth
           accumulated <- Returns.monthlyInterest(month, returns)
         } yield c * (1 + accumulated) + monthlySavings
-    })
+    }).toValidatedNel
   }
-
-
 
   def simulatePlan(returns: Returns,
                    nMonthsSaving: Int,
                    params: RetCalcParams
-                  ): Either[RetCalcError, (Double, Double)] = {
+                  ): RetCalcResult[(Double, Double)] = {
 
     import params._
 
     // Calculate capital after savings and interest, before retirement.
-    for {
-      capitalAtRetirement <- futureCapital(
-        initialCapital = initialCapital,
-        returns = returns,
-        nMonths = nMonthsSaving,
-        netIncome = netIncome,
-        expenses = expenses
-      )
-
-      capitalAtDeath <- futureCapital(
-        initialCapital = capitalAtRetirement,
-        returns =  OffsetReturns(returns, nMonthsSaving),
-        nMonths = nMonthsInRetirement,
-        netIncome = 0,
-        expenses = expenses
-      )
-
-    } yield (capitalAtRetirement, capitalAtDeath)
+    futureCapital(
+      initialCapital = initialCapital,
+      returns = returns,
+      nMonths = nMonthsSaving,
+      netIncome = netIncome,
+      expenses = expenses
+    ).andThen {
+      capitalAtRetirement => {
+        futureCapital(
+          initialCapital = capitalAtRetirement,
+          returns =  OffsetReturns(returns, nMonthsSaving),
+          nMonths = nMonthsInRetirement,
+          netIncome = 0,
+          expenses = expenses
+        )
+      }.map {
+        capitalAtDeath => (capitalAtRetirement, capitalAtDeath)
+      }
+    }
   }
 
   def nbMonthsOfSaving(initialCapital: Int,
                        returns: Returns,
                        nMonthsInRetirement: Int,
                        netIncome: Int,
-                       expenses: Int): Either[RetCalcError, Int] = {
+                       expenses: Int): RetCalcResult[Int] = {
 
     @scala.annotation.tailrec
-    def go(monthNumber: Int): Either[RetCalcError, Int] = {
+    def go(monthNumber: Int): RetCalcResult[Int] = {
 
       simulatePlan(
         returns = returns,
@@ -77,17 +79,17 @@ object RetCalc {
           expenses = expenses
         )
       ) match {
-        case Right((_, capitalAfterDeath)) => {
+        case Valid((_, capitalAfterDeath)) => {
           if (capitalAfterDeath > 0) {
-            Right(monthNumber)
+            Valid(monthNumber)
           } else go(monthNumber + 1)
         }
-        case Left(err) => Left(err)
+        case Invalid(err) => Invalid(err)
       }
     }
 
     if (expenses > netIncome) {
-      Left(NegativeIncomeError(netIncome, expenses))
+      Invalid(NonEmptyList.of(NegativeIncomeError(netIncome, expenses)))
     } else go(0)
   }
 

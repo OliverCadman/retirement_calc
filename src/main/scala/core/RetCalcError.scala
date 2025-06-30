@@ -27,6 +27,6 @@ object RetCalcError {
 
   case class MonthIDNotFoundError(monthId: String, minMonthId: String, maxMonthId: String)
     extends RetCalcError(
-      s"Unable to locate returns data for monthId $monthId. Minimum month ID: $minMonthId. Maximum monthID: $maxMonthId"
+      s"Unable to locate returns data for monthId '$monthId'. Minimum month ID: '$minMonthId'. Maximum monthID: '$maxMonthId'."
     )
 }

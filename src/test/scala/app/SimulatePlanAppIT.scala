@@ -16,13 +16,13 @@ class SimulatePlanAppIT extends AnyWordSpec with Matchers with TypeCheckedTriple
           |Capital after 40 years in retirement: £2,958,842.
           |""".stripMargin
 
-      SimulatePlanApp.strMain(Array("1952.09:2017.09", "25", "40", "3000", "2000", "10000")) should === (Valid(expected))
+      SimulatePlanApp.strMain(Array("1952.09:2017.09", "25", "40", "3000", "2000", "10000")) should === (expected)
     }
 
     "return error message when amount of months saving/in retirement exceed the amount of returns data available" in {
       val expected = "Cannot get returns for month 780. Accepted range: 0 to 779."
 
-      SimulatePlanApp.strMain(Array("1952.09:2017.09", "25", "41", "3000", "2000", "10000")) should === (Invalid(expected))
+      SimulatePlanApp.strMain(Array("1952.09:2017.09", "25", "41", "3000", "2000", "10000")) should === (expected)
     }
 
     "return a usage statement if the expected number of arguments is not provided" in {
@@ -41,7 +41,7 @@ class SimulatePlanAppIT extends AnyWordSpec with Matchers with TypeCheckedTriple
            |  NET-INCOME: Your monthly net income (after taxes).
            |  EXPENSES: Your monthly expenses.
            |""".stripMargin
-      SimulatePlanApp.strMain(Array("1952.09:2017.09", "10", "30", "3000", "2000")) should === (Invalid(expected))
+      SimulatePlanApp.strMain(Array("1952.09:2017.09", "10", "30", "3000", "2000")) should === (expected)
     }
 
     "return a collection of error messages in accordance with invalid arguments" in {
@@ -50,7 +50,13 @@ class SimulatePlanAppIT extends AnyWordSpec with Matchers with TypeCheckedTriple
           |Unable to parse number argument 'nbYearsSaving' with value provided: '25.0'.
           |Unable to parse number argument 'expenses' with value provided: '2'000'.""".stripMargin
 
-      SimulatePlanApp.strMain(Array("1957.09,2017.09", "25.0", "30", "3000", "2'000", "10000")) should === (Invalid(expected))
+      SimulatePlanApp.strMain(Array("1957.09,2017.09", "25.0", "30", "3000", "2'000", "10000")) should === (expected)
+    }
+
+    "return an error message returned from MonthIDNotFoundError when non-existent 'until' arg supplied" in {
+      val expected = "Unable to locate returns data for monthId '2018.01'." +
+        " Minimum month ID: '1900.02'. Maximum monthID: '2017.09'."
+      SimulatePlanApp.strMain(Array("1977.01:2018.01", "25", "30", "3000", "2000", "10000")) should === (expected)
     }
   }
 }
